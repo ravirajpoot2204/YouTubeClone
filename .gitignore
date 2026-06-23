@@ -1,0 +1,34 @@
+# ==================== NODE MODULES (Generated - NEVER upload) ====================
+node_modules/
+**/node_modules/
+
+# ==================== BUILD OUTPUTS (Generated - NEVER upload) ====================
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# ==================== UPLOADS (Your PC files - NOT code) ====================
+backend/uploads/videos/*
+backend/uploads/thumbnails/*
+backend/uploads/avatars/*
+backend/uploads/hls/*
+backend/uploads/tempVOD/*
+
+# Keep default placeholder images (they ARE part of code)
+!backend/uploads/default-avatar.jpg
+!backend/uploads/Default_Thumbnail.jpg
+
+# ==================== ENVIRONMENT (Only if it has real secrets) ====================
+# If .env has real production keys → KEEP IGNORED
+# If .env has dev/dummy keys for team → REMOVE this section
+.env
+.env.local
+.env.*.local
+
+# ==================== OS JUNK FILES ====================
+.DS_Store
+Thumbs.db
+desktop.ini
