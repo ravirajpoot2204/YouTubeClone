@@ -7,8 +7,8 @@ const path = require('path');
 const fs = require('fs');
 const http = require('http');
 const { Server } = require('socket.io');
-const { createWorker } = require('./webRTC/mediasoupServer');
-const socketHandlers = require('./webRTC/socketHandlers');
+//const { createWorker } = require('./webRTC/mediasoupServer');
+//const socketHandlers = require('./webRTC/socketHandlers');
 const { ExpressAdapter } = require('@bull-board/express');
 const { createBullBoard } = require('@bull-board/api');
 const { BullMQAdapter } = require('@bull-board/api/bullMQAdapter');
@@ -172,7 +172,7 @@ createBullBoard({
     console.log('✅ MediaSoup Worker started');
 
     console.log('🟡 Initializing Socket.IO signaling...');
-    socketHandlers(io);
+   // socketHandlers(io);
     console.log('✅ Socket.IO signaling initialized');
   } catch (err) {
     console.error('❌ Failed to initialize server or services:', err.message);
