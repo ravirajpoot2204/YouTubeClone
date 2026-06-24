@@ -9,10 +9,10 @@ const http = require('http');
 const { Server } = require('socket.io');
 //const { createWorker } = require('./webRTC/mediasoupServer');
 //const socketHandlers = require('./webRTC/socketHandlers');
-const { ExpressAdapter } = require('@bull-board/express');
-const { createBullBoard } = require('@bull-board/api');
-const { BullMQAdapter } = require('@bull-board/api/bullMQAdapter');
-const uploadQueue = require('./queues/uploadQueue'); // ✅ Path to your BullMQ queue
+//const { ExpressAdapter } = require('@bull-board/express');
+//const { createBullBoard } = require('@bull-board/api');
+//const { BullMQAdapter } = require('@bull-board/api/bullMQAdapter');
+//const uploadQueue = require('./queues/uploadQueue'); // ✅ Path to your BullMQ queue
 const AuthMiddleware = require('./middleware/authMiddleware');
 require('dotenv').config();
 
@@ -122,7 +122,9 @@ app.use('/api/channels', channelRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/live', liveStreamRoutes);
 app.use('/api/vod', vodRoutes); // mount VOD endpoints
-
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
 // ❌ 404 Handler
 app.use((req, res, next) => {
   const err = new Error(`Not Found - ${req.originalUrl}`);
@@ -147,7 +149,7 @@ const io = new Server(server, {
 // 🚀 Start Server + MediaSoup + Socket.IO
 const startServer = async () => {
   try {
-    const bullBoardAdapter = new ExpressAdapter();
+   /* const bullBoardAdapter = new ExpressAdapter();
     bullBoardAdapter.setBasePath('/admin/queues');
 
 
@@ -162,18 +164,18 @@ createBullBoard({
 
 
     app.use('/admin/queues', AuthMiddleware, bullBoardAdapter.getRouter());
-
+*/
     console.log('🚀 Starting server and services...');
     await server.listen(PORT);
     console.log(`🚀 Server running at http://localhost:${PORT}`);
 
-    console.log('🟡 Starting MediaSoup Worker...');
-    await createWorker();
-    console.log('✅ MediaSoup Worker started');
+    //console.log('🟡 Starting MediaSoup Worker...');
+   // await createWorker();
+    //console.log('✅ MediaSoup Worker started');
 
-    console.log('🟡 Initializing Socket.IO signaling...');
+   // console.log('🟡 Initializing Socket.IO signaling...');
    // socketHandlers(io);
-    console.log('✅ Socket.IO signaling initialized');
+    //console.log('✅ Socket.IO signaling initialized');
   } catch (err) {
     console.error('❌ Failed to initialize server or services:', err.message);
     if (server.listening) {
