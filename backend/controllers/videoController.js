@@ -5,19 +5,18 @@ const fs = require('fs');
 const path = require('path');
 const User = require('../models/user');
 const Channel = require('../models/channel');
-const addTranscodeJob = require('../jobs/transcodeUploadJob');
-
-// ✅ Upload a new video
+const { splitVideoJob } = require('../jobs/splitVideoJob');  // ✅ new
 exports.handleUpload = async (req, res, next) => {
   try {
     const { title, desc, tags, visibility } = req.body;
-    const file = req.file;
+    const videoFile = req.files?.video?.[0];    // from upload.fields
+    const thumbnailFile = req.files?.thumbnail?.[0];
 
     if (!req.user?.channel?._id) {
       throw new CustomError('Unauthorized: You must have a channel to upload videos', 401);
     }
 
-    if (!title || !desc || !file) {
+    if (!title || !desc || !videoFile) {   // videoFile is the file object
       throw new CustomError('All fields are required', 400);
     }
 
@@ -26,28 +25,21 @@ exports.handleUpload = async (req, res, next) => {
       throw new CustomError('Please enter at least 2 tags for suggestions', 400);
     }
 
-    // 🛠️ Step 1: Create placeholder with empty hlsPath
     const video = new Video({
       title,
       description: desc,
-      uploadedAt: new Date(),
-      uploadedBy: req.user.channel._id,
       tags: parsedTags,
       visibility,
-      hlsPath: 'processing', // Temporary placeholder (will be updated later)
+      videoPath: videoFile.path,            // original file path for transcoding
+      uploadedBy: req.user.channel._id,
       status: 'processing',
     });
 
     const savedVideo = await video.save();
 
-    // 🧠 Step 2: Queue transcode job
-    await addTranscodeJob({
-      videoId: savedVideo._id.toString(),
-      inputPath: file.path,
-      filename: file.filename,
-    });
+    // Start distributed transcoding
+    await splitVideoJob(savedVideo._id.toString(), videoFile.path);
 
-    // ✅ Step 3: Return early
     res.status(201).json({
       success: true,
       message: 'Upload successful — processing started',
@@ -58,7 +50,6 @@ exports.handleUpload = async (req, res, next) => {
     next(err);
   }
 };
-
 
 // ✅ Get all videos with channel info
 exports.getAllVideos = async (req, res, next) => {

@@ -41,11 +41,11 @@ exports.authController = async (req, res) => {
       try {
         await downloadAvatar(avatarUrl, `${googleId}.jpg`);
         console.log('📸 Avatar downloaded');
-      } catch {
+      } catch (err) {
+        console.error('❌ Avatar download failed (new user):', err.message);
         user.avatar = '/default_avatar.png';
         await user.save();
       }
-
     } else {
       console.log('👤 Existing user found');
       const avatarPath = path.join(__dirname, '..', 'uploads', 'avatars', `${user.googleId}.jpg`);
@@ -56,7 +56,9 @@ exports.authController = async (req, res) => {
           await downloadAvatar(avatarUrl, `${user.googleId}.jpg`);
           user.avatar = `/uploads/avatars/${user.googleId}.jpg`;
           await user.save();
-        } catch {
+          console.log('📸 Avatar re-downloaded');
+        } catch (err) {
+          console.error('❌ Avatar re-download failed:', err.message);
           user.avatar = '/default_avatar.png';
           await user.save();
         }
@@ -65,28 +67,28 @@ exports.authController = async (req, res) => {
 
     const tokenPayload = { id: user._id };
     const myToken = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '7d' });
-// Inside your login handler (after finding/creating user)
+    // Inside your login handler (after finding/creating user)
 
 
     // ✅ Channel lookup AFTER user exists
     const channel = await Channel.findOne({ owner: user._id });
 
-  const userInfo = {
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  avatar: user.avatar,
-  googleId: user.googleId,
-  channelId: channel?._id || null, // ✅ this line is needed!
-  channel: channel
-    ? {
-        id: channel._id,
-        name: channel.name,
-        username: channel.username,
-        avatar: channel.avatar,
-      }
-    : null,
-};
+    const userInfo = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      googleId: user.googleId,
+      channelId: channel?._id || null, // ✅ this line is needed!
+      channel: channel
+        ? {
+          id: channel._id,
+          name: channel.name,
+          username: channel.username,
+          avatar: channel.avatar,
+        }
+        : null,
+    };
     console.log('✅ JWT created:', myToken);
 
     return res.json({

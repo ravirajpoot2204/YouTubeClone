@@ -9,17 +9,22 @@ const videoSchema = new Schema({
     required: [true, 'Video title is required'],
     trim: true
   },
+  totalChunks: { type: Number, default: 0 },
+  completedChunks: { type: Number, default: 0 },
   description: {
     type: String,
     required: [true, 'Video description is required'],
     trim: true
   },
- 
-  hlsPath: {
+videoPath: {
   type: String,
-  required: true,
-}
-,
+  required: true,  // must be set at upload time
+},
+  hlsPath: {
+    type: String,
+    default: null ,
+  }
+  ,
   thumbnail: {
     type: String,
     default: "http://localhost:5000/uploads/thumbnails/Default_Thumbnail.jpg"
@@ -54,35 +59,35 @@ const videoSchema = new Schema({
     type: Number,
     default: 0
   },
-uploadedBy: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'Channel', // ✅ CHANGE THIS from 'User' to 'Channel'
-  required: true
-}
-,
+  uploadedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Channel', // ✅ CHANGE THIS from 'User' to 'Channel'
+    required: true
+  }
+  ,
 
-viewedBy: {
-  type: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-  default: [],
-  select: false
-}
+  viewedBy: {
+    type: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+    select: false
+  }
 
-,
+  ,
 
   tags: {
     type: [String],
     default: []
   }
   ,
-visibility: {
-  type: String,
-  enum: ['public', 'private', 'unlisted', 'subscribers-only', 'scheduled'],
-  default: 'public',
-},
-status: {
-  type: String,
-  default: 'processing',
-},
+  visibility: {
+    type: String,
+    enum: ['public', 'private', 'unlisted', 'subscribers-only', 'scheduled'],
+    default: 'public',
+  },
+  status: {
+    type: String,
+    default: 'processing',
+  },
 
 
 });
