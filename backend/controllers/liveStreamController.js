@@ -5,7 +5,7 @@ const LiveStream = require('../models/liveStream');
  * @desc    Starts a new live stream for the authenticated user's channel
  * @access  Protected
  */
-exports.startStream = async (req, res) => {
+/*exports.startStream = async (req, res) => {
   try {
     const { title, description, visibility } = req.body;
 
@@ -45,8 +45,75 @@ exports.startStream = async (req, res) => {
       error: err.message,
     });
   }
+};*/
+const crypto = require('crypto');
+
+exports.startStream = async (req, res) => {
+  try {
+    const { title, description, visibility } = req.body;
+
+    if (!req.user?.channel) {
+      return res.status(400).json({ success: false, message: 'Channel not found' });
+    }
+
+    // Generate a unique stream key
+    const streamKey = crypto.randomBytes(16).toString('hex');
+
+    const stream = new LiveStream({
+      title,
+      description,
+      visibility,
+      hostedBy: req.user.channel._id,
+      streamKey,                     // ← added
+      isLive: false,                 // will become true when Nginx calls on_publish
+    });
+
+    await stream.save();
+
+    console.log('🔥 Stream created with key:', streamKey);
+
+    return res.status(201).json({
+      success: true,
+      message: 'Stream created – start pushing RTMP',
+      stream,
+      rtmpUrl: 'rtmp://localhost/live',   // replace with your server IP
+      streamKey,
+    });
+  } catch (err) {
+    console.error('❌ Error starting stream:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
 };
 
+// Called by Nginx when a stream starts
+exports.onPublish = async (req, res) => {
+  const { name } = req.body;   // Nginx sends `name` = stream key
+  try {
+    await LiveStream.findOneAndUpdate(
+      { streamKey: name },
+      { isLive: true, startedAt: new Date() }
+    );
+    res.status(200).end();
+  } catch (err) {
+    console.error('on_publish error:', err);
+    res.status(500).end();
+  }
+};
+
+// Called by Nginx when a stream stops
+exports.onPublishDone = async (req, res) => {
+  const { name } = req.body;
+  try {
+    await LiveStream.findOneAndUpdate(
+      { streamKey: name },
+      { isLive: false, endedAt: new Date() }
+    );
+    res.status(200).end();
+  } catch (err) {
+    console.error('on_publish_done error:', err);
+    res.status(500).end();
+  }
+};
 /**
  * @route   GET /api/live/:id
  * @desc    Get a live stream by its ID

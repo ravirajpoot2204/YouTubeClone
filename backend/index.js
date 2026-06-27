@@ -124,6 +124,8 @@ app.use('/api/channels', channelRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/live', liveStreamRoutes);
 app.use('/api/vod', vodRoutes); // mount VOD endpoints
+app.use('/api/live-hls', express.static('/tmp/hls'));
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

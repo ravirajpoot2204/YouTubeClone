@@ -12,6 +12,9 @@ router.get('/:id', liveStreamController.getStreamById);
 // POST /api/live/:id/end
 router.post('/:id/end', authMiddleware, liveStreamController.endStream);
 
+router.post('/on-publish', liveStreamController.onPublish);
+router.post('/on-publish-done', liveStreamController.onPublishDone);
+
 // GET /api/live (active streams) — disabled for now because getActiveStreams is missing
 // router.get('/', liveStreamController.getActiveStreams);
 
