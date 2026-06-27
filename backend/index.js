@@ -13,6 +13,7 @@ const { Server } = require('socket.io');
 //const { createBullBoard } = require('@bull-board/api');
 //const { BullMQAdapter } = require('@bull-board/api/bullMQAdapter');
 //const uploadQueue = require('./queues/uploadQueue'); // ✅ Path to your BullMQ queue
+const hlsRoutes = require('./routes/hlsRoutes');
 const AuthMiddleware = require('./middleware/authMiddleware');
 require('dotenv').config();
 
@@ -118,6 +119,7 @@ app.use('/api/auth', authRoute);
 app.use('/api/comments', commentRoutes);
 app.use('/api/videos', likeDislikeRoute);
 app.use('/api/videos', videoRoute); // Note: This might cause route overlap; consider consolidating
+app.use('/api/hls', hlsRoutes);
 app.use('/api/channels', channelRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/live', liveStreamRoutes);
