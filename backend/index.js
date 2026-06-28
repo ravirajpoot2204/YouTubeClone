@@ -124,8 +124,7 @@ app.use('/api/channels', channelRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/live', liveStreamRoutes);
 app.use('/api/vod', vodRoutes); // mount VOD endpoints
-app.use('/api/live-hls', express.static('/tmp/hls'));
-
+app.use('/api/live-hls', express.static('/tmp/streams/hls'));
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -135,7 +134,9 @@ app.use((req, res, next) => {
   err.statusCode = 404;
   next(err);
 });
-
+app.listen(5000, '0.0.0.0', () => {
+  console.log('Server running on port 5000');
+});
 // 🧯 Error Handler
 app.use(errorHandler);
 
