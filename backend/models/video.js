@@ -16,13 +16,13 @@ const videoSchema = new Schema({
     required: [true, 'Video description is required'],
     trim: true
   },
-videoPath: {
-  type: String,
-  required: true,  // must be set at upload time
-},
+  videoPath: {
+    type: String,
+    required: true,  // must be set at upload time
+  },
   hlsPath: {
     type: String,
-    default: null ,
+    default: null,
   }
   ,
   thumbnail: {
@@ -89,7 +89,9 @@ videoPath: {
     default: 'processing',
   },
 
-
+  isLive: { type: Boolean, default: false },
+  streamKey: { type: String, unique: true, sparse: true }, // Only for live
+  liveStatus: { type: String, enum: ['idle', 'active', 'ended'], default: 'idle' },
 });
 
 module.exports = mongoose.model('Video', videoSchema);
