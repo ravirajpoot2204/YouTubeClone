@@ -8,51 +8,6 @@ const Channel = require('../models/channel');
 const { splitVideoJob } = require('../jobs/splitVideoJob');  // ✅ new
 const generateThumbnail = require('../utils/generateThumbnail'); // adjust the path if needed
 
-/*exports.handleUpload = async (req, res, next) => {
-  try {
-    const { title, desc, tags, visibility } = req.body;
-    const videoFile = req.files?.video?.[0];    // from upload.fields
-    const thumbnailFile = req.files?.thumbnail?.[0];
-
-    if (!req.user?.channel?._id) {
-      throw new CustomError('Unauthorized: You must have a channel to upload videos', 401);
-    }
-
-    if (!title || !desc || !videoFile) {   // videoFile is the file object
-      throw new CustomError('All fields are required', 400);
-    }
-
-    const parsedTags = tags ? JSON.parse(tags) : [];
-    if (!Array.isArray(parsedTags) || parsedTags.length < 2) {
-      throw new CustomError('Please enter at least 2 tags for suggestions', 400);
-    }
-
-    const video = new Video({
-      title,
-      description: desc,
-      tags: parsedTags,
-      visibility,
-      videoPath: videoFile.path,            // original file path for transcoding
-      uploadedBy: req.user.channel._id,
-      status: 'processing',
-    });
-
-    const savedVideo = await video.save();
-
-    // Start distributed transcoding
-    await splitVideoJob(savedVideo._id.toString(), videoFile.path);
-
-    res.status(201).json({
-      success: true,
-      message: 'Upload successful — processing started',
-      data: savedVideo,
-    });
-  } catch (err) {
-    console.error('❌ Upload error:', err.message);
-    next(err);
-  }
-};*/
-
 exports.handleUpload = async (req, res, next) => {
   try {
     const { title, desc, tags, visibility } = req.body;
@@ -87,7 +42,21 @@ exports.handleUpload = async (req, res, next) => {
 
     // --- 2. Handle thumbnail ---
     let thumbnailUrl = null;
-    const thumbnailsDir = path.join(__dirname, '..', 'uploads', 'thumbnails');
+  
+ // ✅ Ensure directories exist
+const thumbnailsDir = path.join(__dirname, '..', 'uploads', 'thumbnails');
+const videosDir = path.join(__dirname, '..', 'uploads', 'videos');
+const hlsDir = path.join(__dirname, '..', 'uploads', 'hls');
+
+// Ensure all required directories exist
+[thumbnailsDir, videosDir, hlsDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`📁 Created directory: ${dir}`);
+  }
+});
+
+
 
     if (thumbnailFile) {
       // User uploaded a custom thumbnail – move it
@@ -129,48 +98,6 @@ exports.handleUpload = async (req, res, next) => {
   }
 };
 
-// videoController.js
-exports.getVideoById = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    // 1. Try to find as a regular VOD
-    let video = await Video.findById(id)
-      .populate('uploadedBy', 'name username avatar');
-
-    let isLive = false;
-    let hlsUrl = null;
-
-    if (video) {
-      // It's a VOD
-      isLive = video.isLive || false;
-      hlsUrl = `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
-    } else {
-      // 2. If not found, check if it's a Live Stream
-      const liveStream = await LiveStream.findOne({ streamKey: id }); // or { _id: id }
-      if (liveStream) {
-        video = await Video.findById(liveStream.videoId).populate('uploadedBy', 'name username avatar');
-        isLive = true;
-        hlsUrl = `/live-hls/${liveStream.streamKey}/master.m3u8`;
-      } else {
-        return res.status(404).json({ success: false, message: 'Video not found' });
-      }
-    }
-
-    // 3. Return unified response
-    res.json({
-      success: true,
-      video: {
-        ...video.toObject(),
-        isLive,
-        hlsUrl, // <-- The player uses this URL
-        // Keep other fields like title, description, thumbnail, etc.
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-};
 
 // ✅ Get all videos with channel info
 exports.getAllVideos = async (req, res, next) => {
@@ -235,7 +162,8 @@ exports.getVideoById = async (req, res, next) => {
 // ✅ Suggested videos by tags
 exports.getSuggestedVideosByTags = async (req, res, next) => {
   try {
-    const { videoId } = req.params;
+    // Use either param name
+    const videoId = req.params.videoId || req.params.id;  
     const skip = parseInt(req.query.skip) || 0;
     const limit = parseInt(req.query.limit) || 5;
 

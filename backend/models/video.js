@@ -88,6 +88,8 @@ const videoSchema = new Schema({
     type: String,
     default: 'processing',
   },
+   totalQualities: { type: Number, default: 0 },
+  completedQualities: { type: Number, default: 0 },
 
   isLive: { type: Boolean, default: false },
   streamKey: { type: String, unique: true, sparse: true }, // Only for live
