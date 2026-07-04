@@ -3,15 +3,15 @@ const { Queue } = require('bullmq');
 const connection = require('../config/redisConnection');
 const { getVideoDuration } = require('../utils/ffprobe');
 const Video = require('../models/video');
+const path = require('path');
 
-const chunkQueue = new Queue('transcode-chunk', { connection });
-const SEGMENT_DURATION = 10; // seconds
+const qualityQueue = new Queue('transcode-quality', { connection });
 const DEFAULT_RESOLUTIONS = [144, 240, 360, 480, 720, 1080];
 
 async function splitVideoJob(videoId, filePath) {
-  console.log(`🎬 Splitting video ${videoId}, path: ${filePath}`);
+  console.log(`🎬 Splitting video ${videoId} into quality jobs...`);
 
-  // Attempt to read duration
+  // Read video duration (just for logging, not needed for the per‑quality approach)
   let duration = 0;
   try {
     duration = await getVideoDuration(filePath);
@@ -19,7 +19,7 @@ async function splitVideoJob(videoId, filePath) {
   } catch (err) {
     console.error('❌ ffprobe error:', err.message);
     await Video.findByIdAndUpdate(videoId, { status: 'failed' });
-    return; // stop – can't split without duration
+    return;
   }
 
   if (duration <= 0) {
@@ -28,33 +28,27 @@ async function splitVideoJob(videoId, filePath) {
     return;
   }
 
-  const numChunks = Math.ceil(duration / SEGMENT_DURATION);
-  console.log(`✂️ Splitting into ${numChunks} chunks`);
+  // Prepare output directory
+  const outputDir = path.resolve(__dirname, '..', 'uploads', 'hls', videoId);
 
-  // ✅ Store the total number of chunks right away
+  // Update video document with total qualities and initial status
   await Video.findByIdAndUpdate(videoId, {
-    totalChunks: numChunks,
-    completedChunks: 0,
+    totalQualities: DEFAULT_RESOLUTIONS.length,
+    completedQualities: 0,
     status: 'processing',
   });
 
-  // Add chunk jobs
-  for (let i = 0; i < numChunks; i++) {
-    const start = i * SEGMENT_DURATION;
-    const dur = Math.min(SEGMENT_DURATION, duration - start);
-
-    await chunkQueue.add('process-chunk', {
+  // Enqueue one job per quality
+  for (const quality of DEFAULT_RESOLUTIONS) {
+    await qualityQueue.add(`quality-${quality}p`, {
       videoId,
-      chunkIndex: i,
-      startTime: start,
-      duration: dur,
-      resolutions: DEFAULT_RESOLUTIONS,
+      quality,                    // e.g., 1080
       inputPath: filePath,
-      outputDir: `uploads/hls/${videoId}`,
+      outputDir,
     });
   }
 
-  console.log(`✅ ${numChunks} chunk jobs added to queue`);
+  console.log(`✅ ${DEFAULT_RESOLUTIONS.length} quality jobs enqueued for video ${videoId}`);
 }
 
 module.exports = { splitVideoJob };

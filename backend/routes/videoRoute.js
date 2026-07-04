@@ -12,7 +12,7 @@ router.post('/upload', authMiddleware, upload.fields([
 
 // GET /api/videos
 router.get('/', videoController.getAllVideos);
-
+router.get('/:id/suggested', videoController.getSuggestedVideosByTags);
 // GET /api/videos/my-uploads (must be before /:id)
 router.get('/my-uploads', authMiddleware, videoController.getMyUploadedVideos);
 
@@ -26,7 +26,7 @@ router.put('/:id', authMiddleware, upload.single('thumbnail'), videoController.u
 router.delete('/:id', authMiddleware, videoController.deleteVideo);
 
 // Additional routes your controller exports
-router.get('/suggested/:videoId', videoController.getSuggestedVideosByTags);
+//router.get('/suggested/:videoId', videoController.getSuggestedVideosByTags);
 router.get('/channel/:username', videoController.getVideosByChannelUsername);
 router.get('/:id/status', videoController.getVideoStatus);
 

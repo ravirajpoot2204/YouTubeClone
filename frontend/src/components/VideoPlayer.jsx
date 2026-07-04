@@ -2,26 +2,33 @@
 
 import { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
-import { Settings } from "lucide-react"; // Or any gear icon
+import { Settings } from "lucide-react";
 
 export default function VideoPlayer({ src, poster, isLive = false }) {
   const videoRef = useRef(null);
   const hlsRef = useRef(null);
   const [qualities, setQualities] = useState([]);
-  const [selectedQuality, setSelectedQuality] = useState(-1); // -1 = Auto
+  const [selectedQuality, setSelectedQuality] = useState(-1);
   const [showQualityMenu, setShowQualityMenu] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
-
-    // Native HLS support (Safari)
-    if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = src;
+    if (!video) {
+      console.warn('🎬 Video element not ready');
       return;
     }
 
+    // 🟢 Log the src
+    console.log('🎬 VideoPlayer received src:', src);
+    if (!src) {
+      console.error('🎬 src is undefined or empty!');
+      return;
+    }
+
+
+
     if (Hls.isSupported()) {
+      console.log('🎬 Using hls.js');
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: isLive,
@@ -31,8 +38,9 @@ export default function VideoPlayer({ src, poster, isLive = false }) {
       hls.loadSource(src);
       hls.attachMedia(video);
 
-      // 🔥 When manifest loads, extract quality levels
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      // 🔥 When manifest loads
+      hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
+        console.log('🎬 Manifest parsed:', data);
         const levels = hls.levels.map((level, index) => ({
           index,
           height: level.height,
@@ -40,10 +48,19 @@ export default function VideoPlayer({ src, poster, isLive = false }) {
           label: level.height ? `${level.height}p` : `${Math.round(level.bitrate / 1000)}k`,
         }));
         setQualities(levels);
-        video.play().catch(() => {});
+        video.play().catch(err => console.warn('🎬 Auto-play failed:', err));
       });
 
-      // 🔥 When quality changes, update UI
+      // 🔥 Error handling
+      hls.on(Hls.Events.ERROR, (event, data) => {
+        console.error('🎬 hls.js error:', data);
+        if (data.fatal) {
+          console.error('🎬 Fatal error – attempting recovery...');
+          // Optionally reload or fallback
+        }
+      });
+
+      // 🔥 When quality changes
       hls.on(Hls.Events.LEVEL_SWITCHED, (event, data) => {
         setSelectedQuality(data.level);
       });
@@ -53,10 +70,12 @@ export default function VideoPlayer({ src, poster, isLive = false }) {
         hls.destroy();
       };
     } else {
-      // Fallback: MP4
+      console.warn('🎬 HLS not supported, falling back to MP4');
       video.src = src;
     }
   }, [src, isLive]);
+
+  // ... rest of the component unchanged ...
 
   // 🎯 Manual quality switch
   const handleQualityChange = (levelIndex) => {

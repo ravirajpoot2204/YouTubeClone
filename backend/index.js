@@ -75,12 +75,18 @@ app.use(express.json());
 console.log('📁 Serving uploads with CORS...');
 const serveUploadsWithCORS = (folderName) => {
   app.use(`/uploads/${folderName}`, express.static(path.join(__dirname, 'uploads', folderName), {
-    setHeaders: (res) => {
+    setHeaders: (res, filePath) => {
+      // ✅ Correct MIME types for HLS
+      if (filePath.endsWith('.m3u8')) {
+        res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      } else if (filePath.endsWith('.ts')) {
+        res.setHeader('Content-Type', 'video/mp2t');
+      }
+      // Your existing CORS headers
       res.setHeader('Access-Control-Allow-Origin', FRONTEND_URL);
       res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     },
   }));
-  console.log(`📂 Serving static files for /uploads/${folderName}`);
 };
 // include tempVOD and hls here
 ['thumbnails', 'videos', 'avatars', 'hls', 'tempVOD'].forEach(serveUploadsWithCORS);

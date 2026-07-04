@@ -1,69 +1,144 @@
+// jobs/createPlaylistsJob.js
 const fs = require('fs');
 const path = require('path');
+const { execFile } = require('child_process');
 const Video = require('../models/video');
 
-async function createPlaylists(videoId, outputDir, resolutions) {
-  // 1. Read all segment files
-  const files = fs.readdirSync(outputDir);
+/**
+ * Get the duration of a .ts segment using ffprobe
+ * @param {string} filePath - absolute path to the .ts file
+ * @returns {Promise<number>} duration in seconds
+ */
+function getSegmentDuration(filePath) {
+  return new Promise((resolve, reject) => {
+    execFile('ffprobe', [
+      '-v', 'error',
+      '-show_entries', 'format=duration',
+      '-of', 'csv=p=0',
+      filePath
+    ], (error, stdout) => {
+      if (error) {
+        // Sometimes ffprobe can't read the file; reject to catch
+        return reject(error);
+      }
+      const duration = parseFloat(stdout.trim());
+      if (isNaN(duration)) return reject(new Error(`Invalid duration for ${filePath}: ${stdout}`));
+      resolve(duration);
+    });
+  });
+}
+
+/**
+ * Build a variant .m3u8 playlist for one resolution
+ * @param {string} outputDir - directory containing the .ts chunks
+ * @param {string} resolution - e.g. "720p"
+ * @param {number} totalChunks - total number of chunks expected (optional, for validation)
+ * @returns {Promise<string>} playlist content
+ */
+async function buildVariantPlaylist(outputDir, resolution, totalChunks) {
+  // Collect all .ts files for this resolution
+  const files = fs.readdirSync(outputDir)
+    .filter(f => f.endsWith(`_${resolution}.ts`))
+    .sort(); // ensure correct order
+
+  if (files.length === 0) {
+    throw new Error(`No segments found for resolution ${resolution} in ${outputDir}`);
+  }
+
+  // Optional: warn if we're missing some chunks
+  if (totalChunks && files.length !== totalChunks) {
+    console.warn(`⚠️ Expected ${totalChunks} chunks for ${resolution}, but found ${files.length}. Some chunks may be missing.`);
+  }
+
+  let playlist = '#EXTM3U\n';
+  playlist += '#EXT-X-VERSION:3\n';
+  playlist += `#EXT-X-TARGETDURATION:10\n`; // will be overridden later by actual max
+  playlist += '#EXT-X-MEDIA-SEQUENCE:0\n';
+
+  let maxDuration = 0;
+  for (const file of files) {
+    const filePath = path.join(outputDir, file);
+    try {
+      const duration = await getSegmentDuration(filePath);
+      if (duration > maxDuration) maxDuration = duration;
+      playlist += `#EXTINF:${duration.toFixed(5)},\n`;
+      playlist += `${file}\n`;
+    } catch (err) {
+      console.error(`❌ Failed to read duration for ${file}: ${err.message}`);
+      // Include with a fallback duration (10s) so the playlist can still play
+      playlist += `#EXTINF:10.00000,\n`;
+      playlist += `${file}\n`;
+    }
+  }
+
+  // Now set the correct maximum duration
+  const targetDuration = Math.ceil(maxDuration);
+  playlist = playlist.replace('#EXT-X-TARGETDURATION:10', `#EXT-X-TARGETDURATION:${targetDuration}`);
+
+  return playlist;
+}
+
+/**
+ * Main function called by the finalize worker.
+ * Creates playlists for all resolutions and updates the database.
+ */
+async function createPlaylists(videoId, outputDir, resolutions, totalChunks) {
+  console.log(`📝 Creating playlists for video ${videoId}...`);
+
   const variantPlaylists = [];
 
-  // 2. Create variant playlist for each resolution
   for (const res of resolutions) {
-    const regex = new RegExp(`seg_\\d{5}_${res}p\\.ts$`);
-    const segmentFiles = files.filter(f => regex.test(f)).sort();
-
-    if (segmentFiles.length === 0) continue;
-
-    const playlistName = `${res}p.m3u8`;
-    const playlistPath = path.join(outputDir, playlistName);
-    const targetDuration = 10; // must match chunk duration
-
-    const lines = [
-      '#EXTM3U',
-      '#EXT-X-VERSION:3',
-      `#EXT-X-TARGETDURATION:${targetDuration}`,
-      '#EXT-X-MEDIA-SEQUENCE:0',
-      ...segmentFiles.flatMap(f => [`#EXTINF:${targetDuration.toFixed(6)},`, f]),
-      '#EXT-X-ENDLIST',
-    ];
-    fs.writeFileSync(playlistPath, lines.join('\n'));
-
-    const bandwidthMap = { 144: 200000, 240: 400000, 360: 800000, 480: 1500000, 720: 3000000, 1080: 5000000 };
-    const widthMap = { 144: 256, 240: 426, 360: 640, 480: 854, 720: 1280, 1080: 1920 };
+    const content = await buildVariantPlaylist(outputDir, res, totalChunks);
+    const fileName = `${res}.m3u8`;
+    const filePath = path.join(outputDir, fileName);
+    fs.writeFileSync(filePath, content, 'utf8');
+    console.log(`✅ Wrote ${fileName}`);
     variantPlaylists.push({
       resolution: res,
-      playlistName,
-      bandwidth: bandwidthMap[res],
-      width: widthMap[res],
-      height: res,
+      playlistPath: fileName,
     });
   }
 
-  // 3. Master playlist
-  const masterLines = [
-    '#EXTM3U',
-    '#EXT-X-VERSION:3',
-    ...variantPlaylists.map(v =>
-      `#EXT-X-STREAM-INF:BANDWIDTH=${v.bandwidth},RESOLUTION=${v.width}x${v.height}\n${v.playlistName}`
-    ),
-  ];
-  fs.writeFileSync(path.join(outputDir, 'master.m3u8'), masterLines.join('\n'));
+  // Build master playlist
+  let master = '#EXTM3U\n';
+  master += '#EXT-X-VERSION:3\n';
+  const bandwidthMap = {
+    '144p': 200000,
+    '240p': 400000,
+    '360p': 800000,
+    '480p': 1500000,
+    '720p': 3000000,
+    '1080p': 5000000,
+  };
+  const resolutionMap = {
+    '144p': '256x144',
+    '240p': '426x240',
+    '360p': '640x360',
+    '480p': '854x480',
+    '720p': '1280x720',
+    '1080p': '1920x1080',
+  };
 
-  // 4. Update database (this is the critical part that was failing)
-  try {
-    const updatedVideo = await Video.findByIdAndUpdate(
-      videoId,
-      {
-        hlsPath: `/uploads/hls/${videoId}/master.m3u8`,
-        status: 'completed',
-      },
-      { new: true }
-    );
-    console.log(`✅ Playlists created and video ${videoId} marked as completed.`);
-  } catch (err) {
-    console.error('❌ Failed to update video after playlists:', err.message);
-    throw err; // let the worker know it failed
+  for (const variant of variantPlaylists) {
+    const bandwidth = bandwidthMap[variant.resolution] || 1000000;
+    const resString = resolutionMap[variant.resolution] || variant.resolution;
+    master += `#EXT-X-STREAM-INF:BANDWIDTH=${bandwidth},RESOLUTION=${resString}\n`;
+    master += `${variant.playlistPath}\n`;
   }
+
+  const masterPath = path.join(outputDir, 'master.m3u8');
+  fs.writeFileSync(masterPath, master, 'utf8');
+  console.log(`✅ Wrote master.m3u8`);
+
+  // Update video document
+  const video = await Video.findById(videoId);
+  if (!video) throw new Error('Video not found in DB');
+  video.hlsPath = `/uploads/hls/${videoId}/master.m3u8`;
+  video.status = 'ready';
+  await video.save();
+
+  console.log(`🎉 Video ${videoId} finalized and ready.`);
+  return { success: true };
 }
 
 module.exports = { createPlaylists };
