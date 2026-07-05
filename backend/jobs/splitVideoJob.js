@@ -6,7 +6,9 @@ const Video = require('../models/video');
 const path = require('path');
 
 const qualityQueue = new Queue('transcode-quality', { connection });
-const DEFAULT_RESOLUTIONS = [144, 240, 360, 480, 720, 1080];
+const DEFAULT_RESOLUTIONS = [720, 480, 360, 240, 144];   // biggest first
+
+// ... inside splitVideoJob, the loop will now enqueue 1080p first, then 720p, etc.
 
 async function splitVideoJob(videoId, filePath) {
   console.log(`🎬 Splitting video ${videoId} into quality jobs...`);
