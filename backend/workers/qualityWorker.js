@@ -95,7 +95,7 @@ const worker = new Worker('transcode-quality', async (job) => {
       await finalizeQueue.add('create-master', {
         videoId,
         outputDir,
-        qualities: [144, 240, 360, 480, 720, 1080].map(q => `${q}p`), // string form
+        qualities: [144, 240, 360, 480, 720].map(q => `${q}p`), // string form
       });
     }
   } catch (err) {
