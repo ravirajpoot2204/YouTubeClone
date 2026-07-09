@@ -3,7 +3,7 @@ const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const upload = require('../config/multerConfig');
 const videoController = require('../controllers/videoController');
-
+const optionalAuth = require('../middleware/optionalAuth');
 // POST /api/videos/upload
 router.post('/upload', authMiddleware, upload.fields([
   { name: 'video', maxCount: 1 },
@@ -17,7 +17,9 @@ router.get('/:id/suggested', videoController.getSuggestedVideosByTags);
 router.get('/my-uploads', authMiddleware, videoController.getMyUploadedVideos);
 
 // GET /api/videos/:id
-router.get('/:id', videoController.getVideoById);
+
+// ...
+router.get('/:id', optionalAuth, videoController.getVideoById);
 
 // PUT /api/videos/:id
 router.put('/:id', authMiddleware, upload.single('thumbnail'), videoController.updateVideo);

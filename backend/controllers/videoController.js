@@ -128,9 +128,10 @@ exports.getVideoById = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'This video is private' });
     }
 
-    const userId = req.user?.id || null;
-    const liked = userId ? video.likedBy.includes(userId) : false;
-    const disliked = userId ? video.dislikedBy.includes(userId) : false;
+
+const userId = req.user?._id || null;  
+const liked = userId ? video.likedBy.includes(userId) : false;
+const disliked = userId ? video.dislikedBy.includes(userId) : false;
 
     // 👤 Check if current user is subscribed to the video's channel
     let isSubscribed = false;
@@ -140,7 +141,9 @@ exports.getVideoById = async (req, res, next) => {
         isSubscribed = true;
       }
     }
-
+console.log('video.likedBy:', video.likedBy);
+console.log('userId:', userId);
+console.log('includes?', video.likedBy.includes(userId));
     res.json({
       success: true,
       video: {

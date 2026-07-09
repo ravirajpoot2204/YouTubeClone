@@ -7,16 +7,14 @@ exports.postComment = async (req, res) => {
   const user = req.user;
 
   try {
-    // ✅ Save full user info in comment.user
-    const comment = await Comment.create({
+    let comment = await Comment.create({
       videoId,
       content,
-      user: {
-        _id: user._id,
-        name: user.name,
-        avatar: user.avatar,
-      },
+      user: user._id,   // 🔧 store only the ObjectId
     });
+
+    // Populate user data for the immediate response
+    comment = await comment.populate('user', 'name avatar');
 
     res.status(201).json({ success: true, comment });
   } catch (error) {

@@ -4,6 +4,7 @@ const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true },
   googleId: { type: String, required: true, unique: true },
   avatar: String,
+googleAvatarUrl: { type: String, default: null },
   createdAt: { type: Date, default: Date.now },
 
   isChannelOwner: { type: Boolean, default: false },

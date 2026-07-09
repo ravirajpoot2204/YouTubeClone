@@ -30,41 +30,47 @@ exports.authController = async (req, res) => {
     let user = await User.findOne({ googleId });
 
     if (!user) {
-      user = await User.create({
-        name,
-        email,
-        googleId,
-        avatar: `/uploads/avatars/${googleId}.jpg`,
-      });
-      console.log('🆕 New user created:', user);
+  // 🆕 New user
+  user = await User.create({
+    name,
+    email,
+    googleId,
+    avatar: avatarUrl,           // start with Google URL (safe fallback)
+    googleAvatarUrl: avatarUrl,  // permanent backup
+  });
 
-      try {
-        await downloadAvatar(avatarUrl, `${googleId}.jpg`);
-        console.log('📸 Avatar downloaded');
-      } catch (err) {
-        console.error('❌ Avatar download failed (new user):', err.message);
-        user.avatar = '/default_avatar.png';
+  try {
+    await downloadAvatar(avatarUrl, `${googleId}.jpg`);
+    // Download succeeded → overwrite avatar with local file path
+    user.avatar = `/uploads/avatars/${googleId}.jpg`;
+    await user.save();
+    console.log('📸 Avatar downloaded');
+  } catch (err) {
+    console.error('❌ Avatar download failed (new user):', err.message);
+    // avatar still holds the Google URL, so nothing else to do
+  }
+} else {
+  // 👤 Existing user
+  const localAvatarPath = path.join(__dirname, '..', 'uploads', 'avatars', `${user.googleId}.jpg`);
+
+  if (!fs.existsSync(localAvatarPath)) {
+    console.log('⚠️ Local avatar missing. Trying to re‑download...');
+    try {
+      await downloadAvatar(avatarUrl, `${user.googleId}.jpg`);
+      user.avatar = `/uploads/avatars/${user.googleId}.jpg`;
+      await user.save();
+      console.log('📸 Avatar re‑downloaded');
+    } catch (err) {
+      console.error('❌ Re‑download failed:', err.message);
+      // Keep the current avatar (likely the old local path or Google URL)
+      // If avatar is still broken, you could fallback to googleAvatarUrl here:
+      if (!user.avatar || user.avatar.startsWith('/default_')) {
+        user.avatar = user.googleAvatarUrl || avatarUrl;
         await user.save();
       }
-    } else {
-      console.log('👤 Existing user found');
-      const avatarPath = path.join(__dirname, '..', 'uploads', 'avatars', `${user.googleId}.jpg`);
-
-      if (!fs.existsSync(avatarPath)) {
-        console.log('⚠️ Avatar missing. Re-downloading...');
-        try {
-          await downloadAvatar(avatarUrl, `${user.googleId}.jpg`);
-          user.avatar = `/uploads/avatars/${user.googleId}.jpg`;
-          await user.save();
-          console.log('📸 Avatar re-downloaded');
-        } catch (err) {
-          console.error('❌ Avatar re-download failed:', err.message);
-          user.avatar = '/default_avatar.png';
-          await user.save();
-        }
-      }
     }
-
+  }
+}
     const tokenPayload = { id: user._id };
     const myToken = jwt.sign(tokenPayload, process.env.JWT_SECRET, { expiresIn: '7d' });
     // Inside your login handler (after finding/creating user)

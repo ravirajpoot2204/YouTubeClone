@@ -13,6 +13,12 @@ router.get('/me', authMiddleware, async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+// backend/routes/userRoutes.js
+router.get('/:userId/profile', async (req, res) => {
+  const user = await User.findById(req.params.userId).select('name avatar');
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  res.json({ name: user.name, avatar: user.avatar });
+});
 
 // GET /api/users/:id
 router.get('/:id', async (req, res) => {
