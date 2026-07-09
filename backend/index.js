@@ -126,6 +126,7 @@ app.use('/api/comments', commentRoutes);
 app.use('/api/videos', likeDislikeRoute);
 app.use('/api/videos', videoRoute); // Note: This might cause route overlap; consider consolidating
 app.use('/api/hls', hlsRoutes);
+app.use('/api/chat', require('./routes/chatRoutes'));
 app.use('/api/channels', channelRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/live', liveStreamRoutes);
@@ -140,22 +141,14 @@ app.use((req, res, next) => {
   err.statusCode = 404;
   next(err);
 });
-app.listen(5000, '0.0.0.0', () => {
-  console.log('Server running on port 5000');
-});
+
 // 🧯 Error Handler
 app.use(errorHandler);
 
 // ✅ Set up HTTP + WebSocket server
+const setupSocketServer = require('./socket/socketServer'); // adjust path if needed
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: FRONTEND_URL,
-    methods: ['GET', 'POST'],
-    credentials: true,
-  },
-  path: '/socket.io', // Explicit path for WebSocket
-});
+const io = setupSocketServer(server);
 
 // 🚀 Start Server + MediaSoup + Socket.IO
 const startServer = async () => {

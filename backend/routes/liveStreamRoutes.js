@@ -17,5 +17,19 @@ router.post('/on-publish-done', liveStreamController.onPublishDone);
 
 // GET /api/live (active streams) — disabled for now because getActiveStreams is missing
 // router.get('/', liveStreamController.getActiveStreams);
-
+// GET /api/chat/:streamId
+router.get('/:streamId', async (req, res) => {
+  try {
+    const messages = await ChatMessage.find({
+      streamId: req.params.streamId,
+      isDeleted: false
+    })
+    .populate('user', 'name avatar')
+    .sort({ createdAt: 1 })
+    .limit(100);
+    res.json({ success: true, messages });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 module.exports = router;

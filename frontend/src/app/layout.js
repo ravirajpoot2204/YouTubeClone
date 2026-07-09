@@ -2,7 +2,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import Sidebar from "@/components/Sidebar";
 import ClientLayout from "@/components/ClientLayout";
-
+import UserLoader from "@/components/UserLoader"; 
 export const metadata = {
   title: "StreamApp - Video Streaming Platform",
   description: "Watch, upload, and stream videos. Live streaming with chat.",
@@ -12,6 +12,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
+           <UserLoader />  
         <ClientLayout>
           <Navbar />
           <div className="flex">

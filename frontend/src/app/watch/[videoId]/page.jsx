@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import Link from "next/link";
 import Image from "next/image";
 import { ThumbsUp, ThumbsDown, Share2, Clock, Eye } from "lucide-react";
-import api from "@/lib/axios";
+import api, { toggleLike, toggleDislike } from "@/lib/axios"; // adjust if you keep API helpers separately
 import VideoPlayer from "@/components/VideoPlayer";
 import SuggestedVideos from "@/components/SuggestedVideos";
-
+import { useAuthStore } from "@/store/authStore";
+import CommentSection from "@/components/CommentSection";
 export default function WatchPage() {
   const { videoId } = useParams();
   const [video, setVideo] = useState(null);
@@ -16,7 +16,9 @@ export default function WatchPage() {
   const [error, setError] = useState(null);
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
-
+  // Inside the component:
+  const { token } = useAuthStore();
+  const isLoggedIn = !!token;
   useEffect(() => {
     if (!videoId) return;
 
@@ -37,15 +39,43 @@ export default function WatchPage() {
     fetchVideo();
   }, [videoId]);
 
+  // ✅ Real API handlers
   const handleLike = async () => {
-    // TODO: implement API call to toggle like
-    setLiked(!liked);
-    if (disliked) setDisliked(false);
+    try {
+      if (!isLoggedIn) {
+        window.location.href = '/login';
+        return;
+      }
+      const data = await toggleLike(videoId);
+      setLiked(data.liked);
+      setDisliked(data.disliked);
+      setVideo((prev) => ({
+        ...prev,
+        likes: data.likes,
+        dislikes: data.dislikes,
+      }));
+    } catch (err) {
+      console.error("Like failed:", err);
+    }
   };
 
   const handleDislike = async () => {
-    setDisliked(!disliked);
-    if (liked) setLiked(false);
+    try {
+      if (!isLoggedIn) {
+        window.location.href = '/login';
+        return;
+      }
+      const data = await toggleDislike(videoId);
+      setLiked(data.liked);
+      setDisliked(data.disliked);
+      setVideo((prev) => ({
+        ...prev,
+        likes: data.likes,
+        dislikes: data.dislikes,
+      }));
+    } catch (err) {
+      console.error("Dislike failed:", err);
+    }
   };
 
   if (loading) {
@@ -64,8 +94,8 @@ export default function WatchPage() {
     );
   }
 
-// ✅ CORRECT (no /api)
-const hlsSrc = `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
+  const hlsSrc = `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex flex-col lg:flex-row gap-6">
@@ -85,24 +115,27 @@ const hlsSrc = `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
                   <Eye size={16} /> {video.views || 0} views
                 </span>
                 <span className="flex items-center gap-1">
-                  <Clock size={16} /> {new Date(video.uploadDate).toLocaleDateString()}
+                  <Clock size={16} />{" "}
+                  {new Date(video.uploadDate).toLocaleDateString()}
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleLike}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full border transition ${
-                    liked ? "bg-blue-50 border-blue-300 text-blue-600" : "hover:bg-gray-50"
-                  }`}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full border transition ${liked
+                      ? "bg-blue-50 border-blue-300 text-blue-600"
+                      : "hover:bg-gray-50"
+                    }`}
                 >
                   <ThumbsUp size={16} />
                   <span>{video.likes || 0}</span>
                 </button>
                 <button
                   onClick={handleDislike}
-                  className={`flex items-center gap-1 px-3 py-1 rounded-full border transition ${
-                    disliked ? "bg-red-50 border-red-300 text-red-600" : "hover:bg-gray-50"
-                  }`}
+                  className={`flex items-center gap-1 px-3 py-1 rounded-full border transition ${disliked
+                      ? "bg-red-50 border-red-300 text-red-600"
+                      : "hover:bg-gray-50"
+                    }`}
                 >
                   <ThumbsDown size={16} />
                   <span>{video.dislikes || 0}</span>
@@ -124,8 +157,12 @@ const hlsSrc = `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
                     className="rounded-full object-cover"
                   />
                   <div>
-                    <p className="font-semibold text-gray-900">{video.uploadedBy.name}</p>
-                    <p className="text-xs text-gray-500">@{(video.uploadedBy.username || "channel")}</p>
+                    <p className="font-semibold text-gray-900">
+                      {video.uploadedBy.name}
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      @{video.uploadedBy.username || "channel"}
+                    </p>
                   </div>
                 </div>
                 <button className="bg-red-600 text-white px-4 py-2 rounded-full text-sm font-medium hover:bg-red-700">
@@ -136,13 +173,17 @@ const hlsSrc = `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
 
             {video.description && (
               <div className="mt-4 p-4 bg-gray-50 rounded-xl">
-                <p className="text-sm text-gray-700 whitespace-pre-wrap">{video.description}</p>
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                  {video.description}
+                </p>
               </div>
             )}
 
-            <div className="mt-6">
-              <h3 className="text-lg font-semibold mb-3">Comments</h3>
-              <div className="text-gray-500 text-sm">Comments feature coming soon</div>
+          
+             
+              <div className="mt-6">
+                <CommentSection videoId={videoId} />
+            
             </div>
           </div>
         </div>

@@ -26,13 +26,16 @@ exports.likeVideo = async (req, res, next) => {
     }
 
     await video.save();
+    console.log('req.user:', req.user);
 
     res.status(200).json({
-      success: true,
-      message: 'Like status updated',
-      likes: video.likes,
-      dislikes: video.dislikes
-    });
+  success: true,
+  message: 'Like status updated',
+  likes: video.likes,
+  dislikes: video.dislikes,
+  liked: video.likedBy.includes(userId),      // 👈 add this
+  disliked: video.dislikedBy.includes(userId) // 👈 add this
+});
 
   } catch (err) {
     next(err);
