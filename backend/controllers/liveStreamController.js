@@ -73,12 +73,12 @@ exports.startStream = async (req, res) => {
     console.log('🔥 Stream created with key:', streamKey);
 
     return res.status(201).json({
-      success: true,
-      message: 'Stream created – start pushing RTMP',
-      stream,
-      rtmpUrl: 'rtmp://localhost/live',   // replace with your server IP
-      streamKey,
-    });
+  success: true,
+  message: 'Stream created – start pushing RTMP',
+  stream,
+ rtmpUrl: process.env.RTMP_SERVER_URL || 'rtmp://localhost/live',   // ← use the real IP
+  streamKey,
+});
   } catch (err) {
     console.error('❌ Error starting stream:', err);
     return res.status(500).json({ success: false, message: 'Server error' });

@@ -3,33 +3,20 @@ const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
 const liveStreamController = require('../controllers/liveStreamController');
 
-// POST /api/live/start
+// Start stream (generates key)
 router.post('/start', authMiddleware, liveStreamController.startStream);
 
-// GET /api/live/:id
+// Get single stream info
 router.get('/:id', liveStreamController.getStreamById);
 
-// POST /api/live/:id/end
+// End stream (owner only)
 router.post('/:id/end', authMiddleware, liveStreamController.endStream);
 
-router.post('/on-publish', liveStreamController.onPublish);
-router.post('/on-publish-done', liveStreamController.onPublishDone);
+// Nginx callbacks – must match the URLs in nginx.conf
+router.post('/onPublish', liveStreamController.onPublish);
+router.post('/onPublishDone', liveStreamController.onPublishDone);
 
-// GET /api/live (active streams) — disabled for now because getActiveStreams is missing
+// Optional: list active streams
 // router.get('/', liveStreamController.getActiveStreams);
-// GET /api/chat/:streamId
-router.get('/:streamId', async (req, res) => {
-  try {
-    const messages = await ChatMessage.find({
-      streamId: req.params.streamId,
-      isDeleted: false
-    })
-    .populate('user', 'name avatar')
-    .sort({ createdAt: 1 })
-    .limit(100);
-    res.json({ success: true, messages });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-});
+
 module.exports = router;

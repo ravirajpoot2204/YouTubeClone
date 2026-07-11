@@ -15,7 +15,7 @@ export default function LiveStreamPage() {
 
   if (!stream) return <div>Loading...</div>;
 
-  const hlsUrl = `http://localhost:8080/live/${stream.streamKey}/index.m3u8`; // adjust to your RTMP server
+  const hlsUrl = `http://localhost:8080/hls/${stream.streamKey}/index.m3u8`; // adjust to your RTMP server
 
   return (
     <div className="flex h-screen">
