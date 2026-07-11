@@ -70,6 +70,7 @@ app.use(cors({ origin: FRONTEND_URL, credentials: true }));
 app.use(helmet());
 app.use(compression());
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // 📁 Serve uploads with CORS headers (added tempVOD)
 console.log('📁 Serving uploads with CORS...');
