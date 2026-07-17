@@ -42,7 +42,8 @@ const chatMessageSchema = new mongoose.Schema({
     type: Number, // How long superchat stays pinned (seconds)
     default: 0,
   },
-
+platformFee: { type: Number, default: 0 },
+creatorEarning: { type: Number, default: 0 },
   // Moderation fields
   isDeleted: {
     type: Boolean,

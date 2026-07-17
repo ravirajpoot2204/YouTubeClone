@@ -9,7 +9,7 @@ googleAvatarUrl: { type: String, default: null },
 
   isChannelOwner: { type: Boolean, default: false },
   earnings: { type: Number, default: 0 },
-
+securityPin: { type: String, default: null },  // hashed PIN
   // Subscriptions → list of followed channels
   subscribedChannels: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Channel' }],
 });

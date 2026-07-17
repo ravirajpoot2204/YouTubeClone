@@ -7,7 +7,7 @@ const User = require('../models/user');
 const Channel = require('../models/channel');
 const { splitVideoJob } = require('../jobs/splitVideoJob');  // ✅ new
 const generateThumbnail = require('../utils/generateThumbnail'); // adjust the path if needed
-
+const bcrypt = require('bcryptjs');
 exports.handleUpload = async (req, res, next) => {
   try {
     const { title, desc, tags, visibility } = req.body;
@@ -239,23 +239,44 @@ exports.updateVideo = async (req, res, next) => {
 exports.deleteVideo = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { password, pin } = req.body;   // accept both
 
-    const video = await Video.findByIdAndDelete(id);
-    if (!video) {
-      return res.status(404).json({ success: false, message: 'Video not found' });
+    const video = await Video.findById(id);
+    if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
+
+    // ownership check
+    if (video.uploadedBy.toString() !== req.user.channel._id.toString())
+      return res.status(403).json({ success: false, message: 'Unauthorized' });
+
+    const user = await User.findById(req.user._id);
+
+    // verify PIN if user has one, otherwise password
+    if (user.securityPin) {
+      if (!pin) return res.status(400).json({ success: false, message: 'PIN is required' });
+      const pinMatch = await bcrypt.compare(pin, user.securityPin);
+      if (!pinMatch) return res.status(403).json({ success: false, message: 'Wrong PIN' });
+    } else {
+      if (!password) return res.status(400).json({ success: false, message: 'Password is required' });
+      const passMatch = await bcrypt.compare(password, user.password || '');
+      if (!passMatch) return res.status(403).json({ success: false, message: 'Wrong password' });
     }
 
-    const filePath = path.join(__dirname, '..', video.filePath);
-    fs.unlink(filePath, err => {
-      if (err) console.error('❌ Error deleting video file:', err.message);
-    });
-
+    // delete video
+    await Video.findByIdAndDelete(id);
+// 6. Delete video file from disk (if videoPath exists)
+if (video.videoPath) {
+  const filePath = path.join(__dirname, '..', video.videoPath);
+  fs.unlink(filePath, err => {
+    if (err) console.error('❌ Error deleting video file:', err.message);
+  });
+} else {
+  console.warn('⚠️ videoPath is undefined, skipping file deletion');
+}
     res.json({ success: true, message: 'Video deleted successfully' });
   } catch (err) {
     next(err);
   }
 };
-
 // ✅ Get my uploaded videos (by channel)
 exports.getMyUploadedVideos = async (req, res, next) => {
   try {
