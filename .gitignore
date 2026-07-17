@@ -27,7 +27,7 @@ backend/uploads/tempVOD/*
 .env
 .env.local
 .env.*.local
-
+rzp.csv
 # ==================== OS JUNK FILES ====================
 .DS_Store
 Thumbs.db
