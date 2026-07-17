@@ -133,6 +133,8 @@ app.use('/api/posts', postRoutes);
 app.use('/api/live', liveStreamRoutes);
 app.use('/api/vod', vodRoutes); // mount VOD endpoints
 app.use('/api/live-hls', express.static('/tmp/streams/hls'));
+app.use('/api/payment', require('./routes/paymentRoutes'));
+app.use('/api/admin', require('./routes/adminRoutes'));
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });

@@ -1,11 +1,10 @@
 import Link from "next/link";
 
-export default function VideoCard({ video }) {
+export default function VideoCard({ video, isOwner, onEdit, onDelete }) {
   const timeAgo = (date) => {
     const now = new Date();
     const uploaded = new Date(date);
     const diff = Math.floor((now.getTime() - uploaded.getTime()) / 1000);
-
     if (diff < 60) return `${diff} seconds ago`;
     if (diff < 3600) return `${Math.floor(diff / 60)} minutes ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)} hours ago`;
@@ -20,8 +19,8 @@ export default function VideoCard({ video }) {
   };
 
   return (
-    <Link href={`/watch/${video._id}`} className="group">
-      <div className="space-y-2">
+    <div className="group relative">
+      <Link href={`/watch/${video._id}`} className="space-y-2 block">
         <div className="relative aspect-video bg-gray-200 rounded-xl overflow-hidden">
           <img
             src={video.thumbnail}
@@ -30,7 +29,6 @@ export default function VideoCard({ video }) {
             loading="lazy"
           />
         </div>
-
         <div className="flex gap-3">
           <img
             src={video.uploadedBy?.avatar || "/default-avatar.png"}
@@ -49,7 +47,33 @@ export default function VideoCard({ video }) {
             </p>
           </div>
         </div>
-      </div>
-    </Link>
+      </Link>
+
+      {/* ✨ Owner action buttons (overlaid on thumbnail) */}
+      {isOwner && (
+        <div className="absolute top-2 right-2 flex gap-1 z-10">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              onEdit(video._id);
+            }}
+            className="bg-black/60 hover:bg-black/80 p-1.5 rounded text-white text-xs"
+            title="Edit video"
+          >
+            ✏️
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              onDelete(video._id);
+            }}
+            className="bg-black/60 hover:bg-black/80 p-1.5 rounded text-white text-xs"
+            title="Delete video"
+          >
+            🗑️
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

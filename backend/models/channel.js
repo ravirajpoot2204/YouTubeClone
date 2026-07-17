@@ -9,7 +9,9 @@ const channelSchema = new Schema({
   avatar: { type: String, default: '/uploads/avatars/default-avatar.jpg' },
   banner: { type: String, default: '' },
   createdAt: { type: Date, default: Date.now },
-
+  upiId: { type: String, default: null, sparse: true },
+  upiVerified: { type: Boolean, default: false },
+upiVerificationUtr: { type: String, default: null },  // temporary, for admin to check
   // ✅ NEW: Track total subscriber count
   subscriberCount: { type: Number, default: 0 },
 });

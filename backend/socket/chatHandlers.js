@@ -1,6 +1,7 @@
 const ChatMessage = require('../models/chatMessage');
 const LiveStream = require('../models/liveStream');
 const User = require('../models/user');
+const paymentController = require('../controllers/paymentController');
 
 // Store active slow modes per stream
 const slowModes = new Map();
@@ -108,9 +109,51 @@ const chatHandlers = (io, socket) => {
     }
   });
 
+  socket.on('send-superchat', async (data) => {
+  try {
+    const { streamId, message, userId, amount, color } = data;
+
+    // Calculate earnings
+    const { platformFee, creatorEarning } = paymentController.calculateEarnings(amount);
+    // ^^^ You'll need to import the controller or move the function to a shared utility.
+
+    const superChat = await ChatMessage.create({
+      streamId,
+      user: userId,
+      message,
+      type: 'superchat',
+      superChatAmount: amount,
+platformFee,
+  creatorEarning,
+  creatorUpi: upiId,   // snapshot at time of payment
+  paymentStatus: 'approved', // or 'pending' for manual UPI
+      superChatColor: color || '#FF0000',
+      superChatDuration: amount > 10 ? 300 : 60,
+    });
+
+    const populatedSuperChat = await ChatMessage.findById(superChat._id)
+      .populate('user', 'name avatar');
+
+    io.to(`stream:${streamId}`).emit('new-superchat', populatedSuperChat);
+    // ... rest of handler
+     // Auto unpin after duration
+      setTimeout(async () => {
+        await ChatMessage.findByIdAndUpdate(superChat._id, {
+          isPinned: false,
+        });
+        io.to(`stream:${streamId}`).emit('superchat-expired', {
+          messageId: superChat._id,
+        });
+      }, superChat.superChatDuration * 1000);
+  } catch (error) {
+      console.error('❌ SuperChat error:', error);
+      socket.emit('chat-error', { message: 'Failed to send super chat' });
+    }
+});
+
   // ==================== SEND SUPER CHAT ====================
   
-  socket.on('send-superchat', async (data) => {
+  /*socket.on('send-superchat', async (data) => {
     try {
       const { streamId, message, userId, amount, color } = data;
 
@@ -144,7 +187,7 @@ const chatHandlers = (io, socket) => {
       console.error('❌ SuperChat error:', error);
       socket.emit('chat-error', { message: 'Failed to send super chat' });
     }
-  });
+  });*/
 
   // ==================== DELETE MESSAGE (Moderator) ====================
   
