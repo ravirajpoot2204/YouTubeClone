@@ -24,9 +24,9 @@ backend/uploads/tempVOD/*
 # ==================== ENVIRONMENT (Only if it has real secrets) ====================
 # If .env has real production keys → KEEP IGNORED
 # If .env has dev/dummy keys for team → REMOVE this section
-#.env
-#.env.local
-#.env.*.local
+.env
+.env.local
+.env.*.local
 rzp.csv
 # ==================== OS JUNK FILES ====================
 .DS_Store
