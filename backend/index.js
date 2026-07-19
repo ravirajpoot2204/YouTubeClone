@@ -1,4 +1,8 @@
 // index.js (updated - minimal changes)
+
+require('./workers/uploadWorker');
+require('./workers/qualityWorker');
+require('./workers/finalizeWorker');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -133,6 +137,7 @@ app.use('/api/posts', postRoutes);
 app.use('/api/live', liveStreamRoutes);
 app.use('/api/vod', vodRoutes); // mount VOD endpoints
 app.use('/api/live-hls', express.static('/tmp/streams/hls'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/payment', require('./routes/paymentRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
 app.get('/api/health', (req, res) => {

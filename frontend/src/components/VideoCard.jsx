@@ -1,6 +1,7 @@
 import Link from "next/link";
-
+import api from "@/lib/axios";
 export default function VideoCard({ video, isOwner, onEdit, onDelete }) {
+  console.log("API: ",api);
   const timeAgo = (date) => {
     const now = new Date();
     const uploaded = new Date(date);
