@@ -1,4 +1,8 @@
 // index.js (updated - minimal changes)
+
+require('./workers/uploadWorker');
+require('./workers/qualityWorker');
+require('./workers/finalizeWorker');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
