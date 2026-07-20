@@ -5,28 +5,9 @@ const fs = require('fs');
 const path = require('path');
 const User = require('../models/user');
 const Channel = require('../models/channel');
-const { splitVideoJob } = require('../jobs/splitVideoJob');
-const generateThumbnail = require('../utils/generateThumbnail');
+const { splitVideoJob } = require('../jobs/splitVideoJob');  // ✅ new
+const generateThumbnail = require('../utils/generateThumbnail'); // adjust the path if needed
 const bcrypt = require('bcryptjs');
-
-// 🌐 Base URL for serving static files (Render or local)
-const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
-
-// Helper to convert relative paths to absolute URLs
-const toAbsolute = (relativePath) => {
-  if (!relativePath || !relativePath.startsWith('/')) return relativePath;
-  return backendUrl + relativePath;
-};
-
-// Helper to process a video object (including nested uploadedBy)
-const processVideo = (video) => {
-  const v = video.toObject ? video.toObject() : video;
-  if (v.hlsPath) v.hlsPath = toAbsolute(v.hlsPath);
-  if (v.thumbnail) v.thumbnail = toAbsolute(v.thumbnail);
-  if (v.uploadedBy?.avatar) v.uploadedBy.avatar = toAbsolute(v.uploadedBy.avatar);
-  return v;
-};
-
 exports.handleUpload = async (req, res, next) => {
   try {
     const { title, desc, tags, visibility } = req.body;
@@ -45,6 +26,7 @@ exports.handleUpload = async (req, res, next) => {
       throw new CustomError('Please enter at least 2 tags for suggestions', 400);
     }
 
+    // --- 1. Create video document (without thumbnail yet) ---
     const video = new Video({
       title,
       description: desc,
@@ -53,53 +35,62 @@ exports.handleUpload = async (req, res, next) => {
       videoPath: videoFile.path,
       uploadedBy: req.user.channel._id,
       status: 'processing',
-      thumbnail: null,
+      thumbnail: null, // will fill later
     });
 
     const savedVideo = await video.save();
 
-    const thumbnailsDir = path.join(__dirname, '..', 'uploads', 'thumbnails');
-    const videosDir = path.join(__dirname, '..', 'uploads', 'videos');
-    const hlsDir = path.join(__dirname, '..', 'uploads', 'hls');
-
-    [thumbnailsDir, videosDir, hlsDir].forEach(dir => {
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-        console.log(`📁 Created directory: ${dir}`);
-      }
-    });
-
+    // --- 2. Handle thumbnail ---
     let thumbnailUrl = null;
+  
+ // ✅ Ensure directories exist
+const thumbnailsDir = path.join(__dirname, '..', 'uploads', 'thumbnails');
+const videosDir = path.join(__dirname, '..', 'uploads', 'videos');
+const hlsDir = path.join(__dirname, '..', 'uploads', 'hls');
+
+// Ensure all required directories exist
+[thumbnailsDir, videosDir, hlsDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+    console.log(`📁 Created directory: ${dir}`);
+  }
+});
+
+
 
     if (thumbnailFile) {
+      // User uploaded a custom thumbnail – move it
       const ext = path.extname(thumbnailFile.originalname);
       const thumbFilename = `thumb_${savedVideo._id}${ext}`;
       const thumbPath = path.join(thumbnailsDir, thumbFilename);
       fs.renameSync(thumbnailFile.path, thumbPath);
       thumbnailUrl = `/uploads/thumbnails/${thumbFilename}`;
     } else {
+      // Auto‑generate thumbnail from video
       try {
         const generatedPath = await generateThumbnail(videoFile.path, thumbnailsDir);
+        // The generateThumbnail function returns the full path (e.g., .../thumb_123456.jpg)
+        // We need to extract the filename and build the URL.
         const filename = path.basename(generatedPath);
         thumbnailUrl = `/uploads/thumbnails/${filename}`;
       } catch (err) {
         console.warn('⚠️ Thumbnail generation failed, using default placeholder.');
+        // Optionally set a default thumbnail URL (make sure you have a default file)
         thumbnailUrl = '/uploads/thumbnails/Default_Thumbnail.jpg';
       }
     }
 
+    // --- 3. Update video with thumbnail URL ---
     savedVideo.thumbnail = thumbnailUrl;
     await savedVideo.save();
 
+    // --- 4. Start transcoding job ---
     await splitVideoJob(savedVideo._id.toString(), videoFile.path);
-
-    // ✅ Send absolute URLs in response
-    const responseData = processVideo(savedVideo);
 
     res.status(201).json({
       success: true,
       message: 'Upload successful — processing started',
-      data: responseData,
+      data: savedVideo,
     });
   } catch (err) {
     console.error('❌ Upload error:', err.message);
@@ -107,13 +98,14 @@ exports.handleUpload = async (req, res, next) => {
   }
 };
 
+
+// ✅ Get all videos with channel info
 exports.getAllVideos = async (req, res, next) => {
   try {
-    let videos = await Video.find({ visibility: 'public' })
+    const videos = await Video.find({ visibility: 'public' }) // ✅
       .sort({ uploadedAt: -1 })
       .populate('uploadedBy', 'name username avatar');
 
-    videos = videos.map(processVideo);
 
     res.json({ success: true, videos });
   } catch (err) {
@@ -121,6 +113,7 @@ exports.getAllVideos = async (req, res, next) => {
   }
 };
 
+// ✅ Get single video with like/dislike state
 exports.getVideoById = async (req, res, next) => {
   try {
     const video = await Video.findById(req.params.id)
@@ -135,10 +128,12 @@ exports.getVideoById = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'This video is private' });
     }
 
-    const userId = req.user?._id || null;
-    const liked = userId ? video.likedBy.includes(userId) : false;
-    const disliked = userId ? video.dislikedBy.includes(userId) : false;
 
+const userId = req.user?._id || null;  
+const liked = userId ? video.likedBy.includes(userId) : false;
+const disliked = userId ? video.dislikedBy.includes(userId) : false;
+
+    // 👤 Check if current user is subscribed to the video's channel
     let isSubscribed = false;
     if (userId) {
       const user = await User.findById(userId);
@@ -146,18 +141,17 @@ exports.getVideoById = async (req, res, next) => {
         isSubscribed = true;
       }
     }
-
-    // ✅ Process video to absolute URLs
-    const processed = processVideo(video);
-
+console.log('video.likedBy:', video.likedBy);
+console.log('userId:', userId);
+console.log('includes?', video.likedBy.includes(userId));
     res.json({
       success: true,
       video: {
-        ...processed,
+        ...video.toObject(),
         liked,
         disliked,
         uploadedBy: {
-          ...processed.uploadedBy,
+          ...video.uploadedBy.toObject(),
           isSubscribed,
         },
       },
@@ -167,9 +161,12 @@ exports.getVideoById = async (req, res, next) => {
   }
 };
 
+
+// ✅ Suggested videos by tags
 exports.getSuggestedVideosByTags = async (req, res, next) => {
   try {
-    const videoId = req.params.videoId || req.params.id;
+    // Use either param name
+    const videoId = req.params.videoId || req.params.id;  
     const skip = parseInt(req.query.skip) || 0;
     const limit = parseInt(req.query.limit) || 5;
 
@@ -183,12 +180,10 @@ exports.getSuggestedVideosByTags = async (req, res, next) => {
       ...(currentVideo.tags?.length > 0 ? { tags: { $in: currentVideo.tags } } : {}),
     };
 
-    let suggestions = await Video.find(query)
+    const suggestions = await Video.find(query)
       .skip(skip)
       .limit(limit)
       .populate('uploadedBy', 'name username avatar');
-
-    suggestions = suggestions.map(processVideo);
 
     res.status(200).json({
       success: true,
@@ -199,6 +194,7 @@ exports.getSuggestedVideosByTags = async (req, res, next) => {
   }
 };
 
+// ✅ Update video
 exports.updateVideo = async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -229,31 +225,32 @@ exports.updateVideo = async (req, res, next) => {
 
     await video.save();
 
-    const responseData = processVideo(video);
-
     res.json({
       success: true,
       message: 'Video updated successfully',
-      data: responseData,
+      data: video,
     });
   } catch (err) {
     next(err);
   }
 };
 
+// ✅ Delete video
 exports.deleteVideo = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { password, pin } = req.body;
+    const { password, pin } = req.body;   // accept both
 
     const video = await Video.findById(id);
     if (!video) return res.status(404).json({ success: false, message: 'Video not found' });
 
+    // ownership check
     if (video.uploadedBy.toString() !== req.user.channel._id.toString())
       return res.status(403).json({ success: false, message: 'Unauthorized' });
 
     const user = await User.findById(req.user._id);
 
+    // verify PIN if user has one, otherwise password
     if (user.securityPin) {
       if (!pin) return res.status(400).json({ success: false, message: 'PIN is required' });
       const pinMatch = await bcrypt.compare(pin, user.securityPin);
@@ -264,23 +261,23 @@ exports.deleteVideo = async (req, res, next) => {
       if (!passMatch) return res.status(403).json({ success: false, message: 'Wrong password' });
     }
 
+    // delete video
     await Video.findByIdAndDelete(id);
-
-    if (video.videoPath) {
-      const filePath = path.join(__dirname, '..', video.videoPath);
-      fs.unlink(filePath, err => {
-        if (err) console.error('❌ Error deleting video file:', err.message);
-      });
-    } else {
-      console.warn('⚠️ videoPath is undefined, skipping file deletion');
-    }
-
+// 6. Delete video file from disk (if videoPath exists)
+if (video.videoPath) {
+  const filePath = path.join(__dirname, '..', video.videoPath);
+  fs.unlink(filePath, err => {
+    if (err) console.error('❌ Error deleting video file:', err.message);
+  });
+} else {
+  console.warn('⚠️ videoPath is undefined, skipping file deletion');
+}
     res.json({ success: true, message: 'Video deleted successfully' });
   } catch (err) {
     next(err);
   }
 };
-
+// ✅ Get my uploaded videos (by channel)
 exports.getMyUploadedVideos = async (req, res, next) => {
   try {
     const channelId = req.user.channel?._id;
@@ -288,18 +285,16 @@ exports.getMyUploadedVideos = async (req, res, next) => {
       return res.status(403).json({ success: false, message: 'You must have a channel' });
     }
 
-    let videos = await Video.find({ uploadedBy: channelId })
+    const videos = await Video.find({ uploadedBy: channelId })
       .sort({ uploadedAt: -1 })
       .populate('uploadedBy', 'name username avatar');
-
-    videos = videos.map(processVideo);
 
     res.json({ success: true, videos });
   } catch (err) {
     next(err);
   }
 };
-
+// 🌐 Get videos uploaded by a public channel (by username)
 exports.getVideosByChannelUsername = async (req, res, next) => {
   try {
     const { username } = req.params;
@@ -309,18 +304,16 @@ exports.getVideosByChannelUsername = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Channel not found' });
     }
 
-    let videos = await Video.find({ uploadedBy: channel._id })
+    const videos = await Video.find({ uploadedBy: channel._id })
       .sort({ uploadedAt: -1 })
       .populate('uploadedBy', 'name username avatar');
-
-    videos = videos.map(processVideo);
 
     res.json({ success: true, videos });
   } catch (err) {
     next(err);
   }
 };
-
+// GET /api/videos/:id/status
 exports.getVideoStatus = async (req, res, next) => {
   try {
     const video = await Video.findById(req.params.id);
