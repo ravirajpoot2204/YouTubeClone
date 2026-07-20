@@ -94,7 +94,7 @@ export default function WatchPage() {
     );
   }
 
-  const hlsSrc = `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
+const hlsSrc = video.hlsPath || `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
