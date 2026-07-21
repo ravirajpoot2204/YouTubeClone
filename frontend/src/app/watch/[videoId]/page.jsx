@@ -26,8 +26,10 @@ export default function WatchPage() {
       try {
         const res = await api.get(`/videos/${videoId}`);
         setVideo(res.data.video);
-        setLiked(res.data.video.liked || false);
+console.log('✅ video.hlsPath from API:', res.data.video.hlsPath);
+setLiked(res.data.video.liked || false);
         setDisliked(res.data.video.disliked || false);
+        
       } catch (err) {
         console.error("Failed to fetch video:", err);
         setError("Video not found or unavailable");
