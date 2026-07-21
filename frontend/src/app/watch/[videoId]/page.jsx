@@ -95,7 +95,7 @@ export default function WatchPage() {
   }
 
 const hlsSrc = video.hlsPath || `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
-
+console.log('🎬 hlsSrc being used:', hlsSrc);
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex flex-col lg:flex-row gap-6">
