@@ -94,7 +94,9 @@ export default function WatchPage() {
     );
   }
 
-const hlsSrc = video.hlsPath || `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
+//const hlsSrc = video.hlsPath || `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
+
+const hlsSrc = 'https://youtubeclone-backend-1vt8.onrender.com/uploads/hls/6a5f0927aa3018a058421260/master.m3u8';
 console.log('🎬 hlsSrc being used:', hlsSrc);
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
