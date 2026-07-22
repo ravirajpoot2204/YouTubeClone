@@ -26,10 +26,8 @@ export default function WatchPage() {
       try {
         const res = await api.get(`/videos/${videoId}`);
         setVideo(res.data.video);
-console.log('✅ video.hlsPath from API:', res.data.video.hlsPath);
-setLiked(res.data.video.liked || false);
+        setLiked(res.data.video.liked || false);
         setDisliked(res.data.video.disliked || false);
-        
       } catch (err) {
         console.error("Failed to fetch video:", err);
         setError("Video not found or unavailable");
@@ -96,17 +94,17 @@ setLiked(res.data.video.liked || false);
     );
   }
 
-//const hlsSrc = video.hlsPath || `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
-
-const hlsSrc = 'https://youtubeclone-backend-1vt8.onrender.com/uploads/hls/6a5f0927aa3018a058421260/master.m3u8';
+const hlsSrc = video.hlsPath || `/uploads/hls/${video.videoId || video._id}/master.m3u8`;
 console.log('🎬 hlsSrc being used:', hlsSrc);
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Main column */}
         <div className="flex-1">
+          <h1>{console.log("HLS SRC : ", hlsSrc)}</h1>
           <VideoPlayer
             src={hlsSrc}
+            
             poster={video.thumbnail || "/default-thumbnail.jpg"}
             isLive={video.isLive || false}
           />

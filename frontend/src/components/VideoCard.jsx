@@ -1,7 +1,7 @@
 import Link from "next/link";
 import api from "@/lib/axios";
 export default function VideoCard({ video, isOwner, onEdit, onDelete }) {
-  console.log("API: ",api);
+
   const timeAgo = (date) => {
     const now = new Date();
     const uploaded = new Date(date);
@@ -21,6 +21,7 @@ export default function VideoCard({ video, isOwner, onEdit, onDelete }) {
 
   return (
     <div className="group relative">
+      
       <Link href={`/watch/${video._id}`} className="space-y-2 block">
         <div className="relative aspect-video bg-gray-200 rounded-xl overflow-hidden">
           <img
