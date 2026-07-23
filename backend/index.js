@@ -1,5 +1,6 @@
 // index.js (updated - minimal changes)
 
+require('dotenv').config();
 require('./workers/uploadWorker');
 require('./workers/qualityWorker');
 require('./workers/finalizeWorker');
@@ -19,7 +20,7 @@ const { Server } = require('socket.io');
 //const uploadQueue = require('./queues/uploadQueue'); // ✅ Path to your BullMQ queue
 const hlsRoutes = require('./routes/hlsRoutes');
 const AuthMiddleware = require('./middleware/authMiddleware');
-require('dotenv').config();
+
 
 // 🧠 Core Setup
 const connectDB = require('./config/db');
